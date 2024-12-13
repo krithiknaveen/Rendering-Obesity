@@ -33,7 +33,7 @@ text_to_number_map = {
     'Gender': {'Male': 0, 'Female': 1},
     'family_history_with_overweight': {'No': 0, 'Yes': 1},
     'FAVC': {'No': 0, 'Yes': 1},
-    'CAEC': {'No': 0, 'Some': 1, 'Full': 2},
+    'CAEC': {'No': 0, 'Some': 1, 'Full': 2,'Always':3},
     'SMOKE': {'No': 0, 'Yes': 1},
     'SCC': {'No': 0, 'Yes': 1},
     'CALC': {'None': 0, 'Some': 1, 'Full': 2},
