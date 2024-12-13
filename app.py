@@ -14,7 +14,7 @@ import pandas as pd
 import os
 
 # Set OpenAI API key
-openai.api_key = os.environ['Api_key']
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # Initialize Flask app
 app = Flask(__name__)
