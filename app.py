@@ -11,9 +11,10 @@ import openai
 from flask import Flask, render_template, request, redirect, url_for
 import joblib
 import pandas as pd
+import os
 
 # Set OpenAI API key
-openai.api_key = Api_key
+openai.api_key = os.environ['Api_key']
 
 # Initialize Flask app
 app = Flask(__name__)
