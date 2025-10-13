@@ -13,7 +13,7 @@ import joblib
 import pandas as pd
 
 # Set OpenAI API key
-openai.api_key = "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"
+openai.api_key = "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"
 
 # Initialize Flask app
 app = Flask(__name__)
