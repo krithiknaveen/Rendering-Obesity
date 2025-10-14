@@ -6,3 +6,4 @@ joblib
 gunicorn
 openai==0.28
 xgboost
+google-generativeai
