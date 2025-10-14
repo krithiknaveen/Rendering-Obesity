@@ -73,7 +73,7 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
         - Foods to avoid
         - Meal timing suggestions
         
-        Keep it practical and actionable.
+        Keep it practical and actionable. Format the response with bullet points using • symbol.
         """
     else:
         prompt = f"""
@@ -87,34 +87,12 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
         - Weekly schedule
         - Safety considerations
         
-        Make it realistic and adaptable.
+        Make it realistic and adaptable. Format the response with bullet points using • symbol.
         """
 
     try:
-        # List available models to see what's supported
-        available_models = genai.list_models()
-        supported_models = []
-        
-        for model in available_models:
-            if 'generateContent' in model.supported_generation_methods:
-                supported_models.append(model.name)
-                print(f"Available model: {model.name}")
-        
-        # Use gemini-1.0-pro or gemini-pro (try different variations)
-        model_name = None
-        for name in ['models/gemini-1.0-pro', 'models/gemini-pro', 'gemini-pro']:
-            if any(name in supported_model for supported_model in supported_models):
-                model_name = name
-                break
-        
-        if not model_name:
-            # Fallback to the first available model that supports generateContent
-            model_name = supported_models[0] if supported_models else 'models/gemini-1.0-pro'
-        
-        print(f"Using model: {model_name}")
-        
-        # Initialize the Gemini model
-        model = genai.GenerativeModel(model_name)
+        # Use one of the available models - let's use gemini-2.0-flash as it's fast and cost-effective
+        model = genai.GenerativeModel('models/gemini-2.0-flash')
         
         # Generate content
         response = model.generate_content(
@@ -129,8 +107,8 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
 
         # Format the response as bullet points
         if plan_type == "diet":
-            diet_plan = suggestions.replace("Diet Plan:", "").strip() if len(suggestions) > 0 else "No diet plan provided."
-            # Split by various bullet point formats
+            diet_plan = suggestions.strip()
+            # Split by bullet points and format nicely
             diet_plan_list = diet_plan.split('•')
             if len(diet_plan_list) == 1:
                 diet_plan_list = diet_plan.split('-')
@@ -140,13 +118,13 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
             formatted_plan = ""
             for item in diet_plan_list:
                 item = item.strip()
-                if item and len(item) > 5:  # Avoid very short items
+                if item and len(item) > 3:  # Avoid very short items
                     formatted_plan += f"• {item}\n"
             return formatted_plan if formatted_plan else "No diet plan provided."
         
         else:  # exercise plan
-            exercise_plan = suggestions.strip() if len(suggestions) > 1 else "No exercise plan provided."
-            # Split by various bullet point formats
+            exercise_plan = suggestions.strip()
+            # Split by bullet points and format nicely
             exercise_plan_list = exercise_plan.split('•')
             if len(exercise_plan_list) == 1:
                 exercise_plan_list = exercise_plan.split('-')
@@ -156,7 +134,7 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
             formatted_plan = ""
             for item in exercise_plan_list:
                 item = item.strip()
-                if item and len(item) > 5:  # Avoid very short items
+                if item and len(item) > 3:  # Avoid very short items
                     formatted_plan += f"• {item}\n"
             return formatted_plan if formatted_plan else "No exercise plan provided."
 
