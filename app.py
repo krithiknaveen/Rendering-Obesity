@@ -63,19 +63,25 @@ def preprocess_input(data, model_type):
 def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
     if plan_type == "diet":
         prompt = f"""
-        User data: {user_data}. 
-        Predicted BMI category: '{prediction_label}'
+        Create a specific diet plan for someone with BMI category: {prediction_label}.
+        User details: {user_data}
         
-        Provide a CONCISE personalized diet plan in 3-4 short sentences without bullet points. 
-        Focus on the most important dietary changes needed. Keep it brief and practical.
+        Provide 3-4 specific food and nutrition recommendations. Be direct and concrete about what to eat.
+        Examples: "Eat more vegetables like broccoli and spinach", "Include lean proteins like chicken and fish", 
+        "Reduce sugar and processed foods", "Drink 2-3 liters of water daily".
+        
+        Make it practical and actionable with real food examples.
         """
     else:
         prompt = f"""
-        User data: {user_data}. 
-        Predicted BMI category: '{prediction_label}'
+        Create a specific exercise plan for someone with BMI category: {prediction_label}.
+        User details: {user_data}
         
-        Provide a CONCISE personalized exercise plan in 3-4 short sentences without bullet points. 
-        Focus on the most essential exercise recommendations. Keep it brief and practical.
+        Provide 3-4 specific exercise recommendations. Be direct and concrete about what activities to do.
+        Examples: "Walk 30 minutes daily", "Do strength training twice weekly", 
+        "Include stretching exercises", "Try swimming or cycling".
+        
+        Make it practical and actionable with real exercise examples.
         """
 
     try:
@@ -86,31 +92,62 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
         response = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=300,  # Reduced for conciseness
+                max_output_tokens=400,
                 temperature=0.7
             )
         )
         
         suggestions = response.text.strip()
         
-        # Clean up any remaining bullet points or markdown
+        # If the response is still vague, provide more specific fallbacks
+        if len(suggestions) < 50 or "no specific" in suggestions.lower() or "consult" in suggestions.lower():
+            return get_fallback_suggestions(prediction_label, plan_type)
+        
+        # Clean up and ensure we have proper content
         suggestions = suggestions.replace('•', '').replace('-', '').replace('*', '')
         suggestions = suggestions.replace('**', '').replace('__', '')
         
-        # Ensure it's concise - limit to 3-4 sentences
-        sentences = [s.strip() for s in suggestions.split('.') if s.strip()]
-        if len(sentences) > 4:
-            suggestions = '. '.join(sentences[:4]) + '.'
-        
-        return suggestions if suggestions else f"No {plan_type} plan provided."
+        return suggestions if suggestions else get_fallback_suggestions(prediction_label, plan_type)
 
     except Exception as e:
         print(f"Error generating {plan_type} suggestions: {str(e)}")
-        # Return a concise fallback response
-        if plan_type == "diet":
-            return f"Focus on balanced nutrition with lean proteins, complex carbs, and healthy fats. Stay hydrated and limit processed foods. Aim for regular meal times and portion control based on your {prediction_label} category."
-        else:
-            return f"Start with moderate cardio and strength training 3-4 times weekly. Focus on consistency and proper form. Include flexibility exercises and listen to your body's signals for your {prediction_label} category."
+        return get_fallback_suggestions(prediction_label, plan_type)
+
+def get_fallback_suggestions(prediction_label, plan_type):
+    """Provide specific fallback suggestions based on BMI category"""
+    
+    diet_fallbacks = {
+        'Underweight': "Eat calorie-dense foods like nuts, avocados, and whole grains. Include protein-rich foods like eggs, chicken, and dairy. Have regular meals with healthy snacks between meals. Consider smoothies with protein powder for extra calories.",
+        'Normal': "Maintain balanced meals with vegetables, lean proteins, and whole grains. Include fruits and healthy fats in your diet. Stay hydrated and limit processed foods. Continue with your current healthy eating habits.",
+        'Overweight': "Focus on portion control and increase vegetable intake. Choose lean proteins like fish and chicken over red meat. Reduce sugar, processed foods, and high-calorie drinks. Include fiber-rich foods to feel full longer.",
+        'Obesity': "Reduce calorie intake by choosing nutrient-dense foods. Increase vegetable consumption and lean proteins. Eliminate sugary drinks and processed snacks. Consider smaller, more frequent meals to manage hunger.",
+        'Insufficient Weight': "Increase calorie intake with healthy foods like nuts, dairy, and whole grains. Include protein with every meal. Eat regular meals and add healthy snacks. Consider nutritional supplements if needed.",
+        'Normal Weight': "Maintain your current healthy weight with balanced nutrition. Include variety in your diet with different colored vegetables. Stay active and hydrated. Limit alcohol and processed foods.",
+        'Obesity Type_I': "Reduce portion sizes and increase vegetable consumption. Choose lean proteins and whole grains over processed foods. Eliminate sugary beverages and snacks. Consider professional guidance for sustainable weight loss.",
+        'Obesity Type II': "Focus on significant calorie reduction through healthy food choices. Increase fiber intake with vegetables and whole grains. Eliminate all processed foods and sugary items. Seek professional medical and nutritional advice.",
+        'Obesity Type III': "Requires medical supervision for diet planning. Focus on nutrient-dense, low-calorie foods. Professional guidance essential for safe weight management. Small, sustainable changes are crucial.",
+        'Overweight Level I': "Moderate calorie reduction with increased physical activity. Focus on whole foods over processed options. Include more vegetables and lean proteins. Reduce portion sizes gradually.",
+        'Overweight Level II': "Implement structured meal planning with calorie control. Increase vegetable and fiber intake significantly. Eliminate sugary drinks and processed snacks. Consider professional nutritional guidance."
+    }
+    
+    exercise_fallbacks = {
+        'Underweight': "Focus on strength training to build muscle. Include weight lifting 3 times weekly. Combine with moderate cardio for overall health. Ensure adequate rest and recovery between workouts.",
+        'Normal': "Maintain current activity level with variety. Include both cardio and strength training. Try new activities to stay motivated. Aim for 150 minutes of moderate exercise weekly.",
+        'Overweight': "Start with low-impact cardio like walking or swimming. Include light strength training twice weekly. Gradually increase duration and intensity. Focus on consistency over intensity.",
+        'Obesity': "Begin with gentle activities like walking or water aerobics. Focus on building daily movement habits. Include light stretching and mobility exercises. Progress slowly to avoid injury.",
+        'Insufficient Weight': "Focus on strength training to build muscle mass. Include resistance exercises 3 times weekly. Combine with light cardio for cardiovascular health. Ensure proper nutrition to support exercise.",
+        'Normal Weight': "Maintain variety in your exercise routine. Include both cardio and strength training. Try recreational sports or dancing for enjoyment. Stay active daily with walking or cycling.",
+        'Obesity Type_I': "Start with low-impact exercises like walking or stationary cycling. Include light strength training for muscle maintenance. Focus on building consistent exercise habits. Progress gradually as fitness improves.",
+        'Obesity Type II': "Begin with very gentle activities like chair exercises or water walking. Focus on daily movement and reducing sedentary time. Include stretching for flexibility. Seek professional guidance for safe exercise.",
+        'Obesity Type III': "Requires medical clearance before exercise. Start with very gentle movements and stretching. Focus on daily activity rather than structured exercise. Professional supervision recommended.",
+        'Overweight Level I': "Include brisk walking, swimming, or cycling regularly. Add strength training twice weekly for muscle tone. Focus on building sustainable exercise habits. Gradually increase activity duration.",
+        'Overweight Level II': "Start with moderate walking and light strength exercises. Include variety to maintain motivation. Focus on consistent daily activity. Progress exercise intensity gradually over time."
+    }
+    
+    if plan_type == "diet":
+        return diet_fallbacks.get(prediction_label, "Focus on balanced meals with vegetables, proteins, and whole grains. Stay hydrated and limit processed foods for better health.")
+    else:
+        return exercise_fallbacks.get(prediction_label, "Include regular physical activity with both cardio and strength training. Start gradually and focus on consistency for best results.")
 
 def get_gpt_suggestions(prediction_label, user_data):
     """Wrapper for diet plan using Gemini"""
