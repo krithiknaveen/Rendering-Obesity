@@ -60,59 +60,6 @@ def preprocess_input(data, model_type):
 
     return input_scaled
 
-def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
-    if plan_type == "diet":
-        prompt = f"""
-        Create a specific diet plan for someone with BMI category: {prediction_label}.
-        User details: {user_data}
-        
-        Provide 3-4 specific food and nutrition recommendations. Be direct and concrete about what to eat.
-        Examples: "Eat more vegetables like broccoli and spinach", "Include lean proteins like chicken and fish", 
-        "Reduce sugar and processed foods", "Drink 2-3 liters of water daily".
-        
-        Make it practical and actionable with real food examples.
-        """
-    else:
-        prompt = f"""
-        Create a specific exercise plan for someone with BMI category: {prediction_label}.
-        User details: {user_data}
-        
-        Provide 3-4 specific exercise recommendations. Be direct and concrete about what activities to do.
-        Examples: "Walk 30 minutes daily", "Do strength training twice weekly", 
-        "Include stretching exercises", "Try swimming or cycling".
-        
-        Make it practical and actionable with real exercise examples.
-        """
-
-    try:
-        # Use gemini-2.0-flash
-        model = genai.GenerativeModel('models/gemini-2.0-flash')
-        
-        # Generate content
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                max_output_tokens=400,
-                temperature=0.7
-            )
-        )
-        
-        suggestions = response.text.strip()
-        
-        # If the response is still vague, provide more specific fallbacks
-        if len(suggestions) < 50 or "no specific" in suggestions.lower() or "consult" in suggestions.lower():
-            return get_fallback_suggestions(prediction_label, plan_type)
-        
-        # Clean up and ensure we have proper content
-        suggestions = suggestions.replace('•', '').replace('-', '').replace('*', '')
-        suggestions = suggestions.replace('**', '').replace('__', '')
-        
-        return suggestions if suggestions else get_fallback_suggestions(prediction_label, plan_type)
-
-    except Exception as e:
-        print(f"Error generating {plan_type} suggestions: {str(e)}")
-        return get_fallback_suggestions(prediction_label, plan_type)
-
 def get_fallback_suggestions(prediction_label, plan_type):
     """Provide specific fallback suggestions based on BMI category"""
     
@@ -148,6 +95,68 @@ def get_fallback_suggestions(prediction_label, plan_type):
         return diet_fallbacks.get(prediction_label, "Focus on balanced meals with vegetables, proteins, and whole grains. Stay hydrated and limit processed foods for better health.")
     else:
         return exercise_fallbacks.get(prediction_label, "Include regular physical activity with both cardio and strength training. Start gradually and focus on consistency for best results.")
+
+def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
+    if plan_type == "diet":
+        prompt = f"""
+        Create a specific diet plan for someone with BMI category: {prediction_label}.
+        User details: {user_data}
+        
+        Provide 3-4 specific food and nutrition recommendations. Be direct and concrete about what to eat.
+        Examples: "Eat more vegetables like broccoli and spinach", "Include lean proteins like chicken and fish", 
+        "Reduce sugar and processed foods", "Drink 2-3 liters of water daily".
+        
+        Make it practical and actionable with real food examples. Return only the recommendations without any introductory text.
+        """
+    else:
+        prompt = f"""
+        Create a specific exercise plan for someone with BMI category: {prediction_label}.
+        User details: {user_data}
+        
+        Provide 3-4 specific exercise recommendations. Be direct and concrete about what activities to do.
+        Examples: "Walk 30 minutes daily", "Do strength training twice weekly", 
+        "Include stretching exercises", "Try swimming or cycling".
+        
+        Make it practical and actionable with real exercise examples. Return only the recommendations without any introductory text.
+        """
+
+    try:
+        # Use gemini-2.0-flash
+        model = genai.GenerativeModel('models/gemini-2.0-flash')
+        
+        # Generate content
+        response = model.generate_content(
+            prompt,
+            generation_config=genai.types.GenerationConfig(
+                max_output_tokens=400,
+                temperature=0.7
+            )
+        )
+        
+        suggestions = response.text.strip()
+        
+        # If the response is still vague, provide more specific fallbacks
+        if len(suggestions) < 50 or "no specific" in suggestions.lower() or "consult" in suggestions.lower():
+            return get_fallback_suggestions(prediction_label, plan_type)
+        
+        # Clean up and ensure we have proper content
+        suggestions = suggestions.replace('•', '').replace('-', '').replace('*', '')
+        suggestions = suggestions.replace('**', '').replace('__', '')
+        suggestions = suggestions.replace('Diet Plan:', '').replace('Exercise Plan:', '').strip()
+        
+        # Remove any introductory phrases
+        lines = suggestions.split('.')
+        if len(lines) > 1:
+            # Take the most substantial sentences
+            substantial_sentences = [s.strip() for s in lines if len(s.strip()) > 20]
+            if substantial_sentences:
+                suggestions = '. '.join(substantial_sentences[:4]) + '.'
+        
+        return suggestions if suggestions else get_fallback_suggestions(prediction_label, plan_type)
+
+    except Exception as e:
+        print(f"Error generating {plan_type} suggestions: {str(e)}")
+        return get_fallback_suggestions(prediction_label, plan_type)
 
 def get_gpt_suggestions(prediction_label, user_data):
     """Wrapper for diet plan using Gemini"""
