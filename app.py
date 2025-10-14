@@ -62,19 +62,65 @@ def preprocess_input(data, model_type):
 
 def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
     if plan_type == "diet":
-        prompt = f"User data: {user_data}. Based on their BMI and predicted category '{prediction_label}', provide a personalized diet plan in bullet points. Focus on nutritional recommendations, meal planning, and dietary adjustments."
+        prompt = f"""
+        User data: {user_data}. 
+        Predicted BMI category: '{prediction_label}'
+        
+        Provide a personalized diet plan in clear bullet points. Include:
+        - Recommended daily calorie intake
+        - Macronutrient distribution
+        - Food recommendations
+        - Foods to avoid
+        - Meal timing suggestions
+        
+        Keep it practical and actionable.
+        """
     else:
-        prompt = f"User data: {user_data}. Based on their BMI and predicted category '{prediction_label}', provide a personalized exercise plan in bullet points. Focus on workout routines, physical activities, and fitness recommendations."
+        prompt = f"""
+        User data: {user_data}. 
+        Predicted BMI category: '{prediction_label}'
+        
+        Provide a personalized exercise plan in clear bullet points. Include:
+        - Recommended workout frequency
+        - Types of exercises
+        - Duration and intensity
+        - Weekly schedule
+        - Safety considerations
+        
+        Make it realistic and adaptable.
+        """
 
     try:
+        # List available models to see what's supported
+        available_models = genai.list_models()
+        supported_models = []
+        
+        for model in available_models:
+            if 'generateContent' in model.supported_generation_methods:
+                supported_models.append(model.name)
+                print(f"Available model: {model.name}")
+        
+        # Use gemini-1.0-pro or gemini-pro (try different variations)
+        model_name = None
+        for name in ['models/gemini-1.0-pro', 'models/gemini-pro', 'gemini-pro']:
+            if any(name in supported_model for supported_model in supported_models):
+                model_name = name
+                break
+        
+        if not model_name:
+            # Fallback to the first available model that supports generateContent
+            model_name = supported_models[0] if supported_models else 'models/gemini-1.0-pro'
+        
+        print(f"Using model: {model_name}")
+        
         # Initialize the Gemini model
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel(model_name)
         
         # Generate content
         response = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=500 if plan_type == "exercise" else 250,
+                max_output_tokens=1000,
                 temperature=0.7
             )
         )
@@ -84,29 +130,49 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
         # Format the response as bullet points
         if plan_type == "diet":
             diet_plan = suggestions.replace("Diet Plan:", "").strip() if len(suggestions) > 0 else "No diet plan provided."
+            # Split by various bullet point formats
             diet_plan_list = diet_plan.split('•')
+            if len(diet_plan_list) == 1:
+                diet_plan_list = diet_plan.split('-')
+            if len(diet_plan_list) == 1:
+                diet_plan_list = diet_plan.split('*')
             
             formatted_plan = ""
             for item in diet_plan_list:
                 item = item.strip()
-                if item:
-                    formatted_plan += f" {item}\n"
-            return formatted_plan.replace("- ","").strip() if formatted_plan else "No diet plan provided."
+                if item and len(item) > 5:  # Avoid very short items
+                    formatted_plan += f"• {item}\n"
+            return formatted_plan if formatted_plan else "No diet plan provided."
         
         else:  # exercise plan
             exercise_plan = suggestions.strip() if len(suggestions) > 1 else "No exercise plan provided."
+            # Split by various bullet point formats
             exercise_plan_list = exercise_plan.split('•')
+            if len(exercise_plan_list) == 1:
+                exercise_plan_list = exercise_plan.split('-')
+            if len(exercise_plan_list) == 1:
+                exercise_plan_list = exercise_plan.split('*')
             
             formatted_plan = ""
             for item in exercise_plan_list:
                 item = item.strip()
-                if item:
-                    formatted_plan += f" {item}\n"
-            return formatted_plan.replace('- ','').strip() if formatted_plan else "No exercise plan provided."
+                if item and len(item) > 5:  # Avoid very short items
+                    formatted_plan += f"• {item}\n"
+            return formatted_plan if formatted_plan else "No exercise plan provided."
 
     except Exception as e:
         print(f"Error generating {plan_type} suggestions: {str(e)}")
-        return f"No {plan_type} plan provided."
+        # Return a fallback response
+        if plan_type == "diet":
+            return f"""• Consult with a nutritionist for personalized diet advice
+• Focus on balanced meals with proteins, carbs, and healthy fats
+• Stay hydrated and limit processed foods
+• Based on your category '{prediction_label}', aim for gradual, sustainable changes"""
+        else:
+            return f"""• Start with light exercises and gradually increase intensity
+• Include both cardio and strength training
+• Aim for 150 minutes of moderate exercise per week
+• Based on your category '{prediction_label}', focus on consistency over intensity"""
 
 def get_gpt_suggestions(prediction_label, user_data):
     """Wrapper for diet plan using Gemini"""
