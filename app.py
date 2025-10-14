@@ -66,91 +66,51 @@ def get_gemini_suggestions(prediction_label, user_data, plan_type="diet"):
         User data: {user_data}. 
         Predicted BMI category: '{prediction_label}'
         
-        Provide a personalized diet plan in clear bullet points. Include:
-        - Recommended daily calorie intake
-        - Macronutrient distribution
-        - Food recommendations
-        - Foods to avoid
-        - Meal timing suggestions
-        
-        Keep it practical and actionable. Format the response with bullet points using • symbol.
+        Provide a CONCISE personalized diet plan in 3-4 short sentences without bullet points. 
+        Focus on the most important dietary changes needed. Keep it brief and practical.
         """
     else:
         prompt = f"""
         User data: {user_data}. 
         Predicted BMI category: '{prediction_label}'
         
-        Provide a personalized exercise plan in clear bullet points. Include:
-        - Recommended workout frequency
-        - Types of exercises
-        - Duration and intensity
-        - Weekly schedule
-        - Safety considerations
-        
-        Make it realistic and adaptable. Format the response with bullet points using • symbol.
+        Provide a CONCISE personalized exercise plan in 3-4 short sentences without bullet points. 
+        Focus on the most essential exercise recommendations. Keep it brief and practical.
         """
 
     try:
-        # Use one of the available models - let's use gemini-2.0-flash as it's fast and cost-effective
+        # Use gemini-2.0-flash
         model = genai.GenerativeModel('models/gemini-2.0-flash')
         
         # Generate content
         response = model.generate_content(
             prompt,
             generation_config=genai.types.GenerationConfig(
-                max_output_tokens=1000,
+                max_output_tokens=300,  # Reduced for conciseness
                 temperature=0.7
             )
         )
         
         suggestions = response.text.strip()
-
-        # Format the response as bullet points
-        if plan_type == "diet":
-            diet_plan = suggestions.strip()
-            # Split by bullet points and format nicely
-            diet_plan_list = diet_plan.split('•')
-            if len(diet_plan_list) == 1:
-                diet_plan_list = diet_plan.split('-')
-            if len(diet_plan_list) == 1:
-                diet_plan_list = diet_plan.split('*')
-            
-            formatted_plan = ""
-            for item in diet_plan_list:
-                item = item.strip()
-                if item and len(item) > 3:  # Avoid very short items
-                    formatted_plan += f"• {item}\n"
-            return formatted_plan if formatted_plan else "No diet plan provided."
         
-        else:  # exercise plan
-            exercise_plan = suggestions.strip()
-            # Split by bullet points and format nicely
-            exercise_plan_list = exercise_plan.split('•')
-            if len(exercise_plan_list) == 1:
-                exercise_plan_list = exercise_plan.split('-')
-            if len(exercise_plan_list) == 1:
-                exercise_plan_list = exercise_plan.split('*')
-            
-            formatted_plan = ""
-            for item in exercise_plan_list:
-                item = item.strip()
-                if item and len(item) > 3:  # Avoid very short items
-                    formatted_plan += f"• {item}\n"
-            return formatted_plan if formatted_plan else "No exercise plan provided."
+        # Clean up any remaining bullet points or markdown
+        suggestions = suggestions.replace('•', '').replace('-', '').replace('*', '')
+        suggestions = suggestions.replace('**', '').replace('__', '')
+        
+        # Ensure it's concise - limit to 3-4 sentences
+        sentences = [s.strip() for s in suggestions.split('.') if s.strip()]
+        if len(sentences) > 4:
+            suggestions = '. '.join(sentences[:4]) + '.'
+        
+        return suggestions if suggestions else f"No {plan_type} plan provided."
 
     except Exception as e:
         print(f"Error generating {plan_type} suggestions: {str(e)}")
-        # Return a fallback response
+        # Return a concise fallback response
         if plan_type == "diet":
-            return f"""• Consult with a nutritionist for personalized diet advice
-• Focus on balanced meals with proteins, carbs, and healthy fats
-• Stay hydrated and limit processed foods
-• Based on your category '{prediction_label}', aim for gradual, sustainable changes"""
+            return f"Focus on balanced nutrition with lean proteins, complex carbs, and healthy fats. Stay hydrated and limit processed foods. Aim for regular meal times and portion control based on your {prediction_label} category."
         else:
-            return f"""• Start with light exercises and gradually increase intensity
-• Include both cardio and strength training
-• Aim for 150 minutes of moderate exercise per week
-• Based on your category '{prediction_label}', focus on consistency over intensity"""
+            return f"Start with moderate cardio and strength training 3-4 times weekly. Focus on consistency and proper form. Include flexibility exercises and listen to your body's signals for your {prediction_label} category."
 
 def get_gpt_suggestions(prediction_label, user_data):
     """Wrapper for diet plan using Gemini"""
